@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from utils.general import check_dataset, check_file
+from utils.general import check_dataset, check_file, LOGGER
 import yaml
 try:
   import wandb
@@ -125,6 +125,10 @@ class WandbLogger():
           self.wandb_run.config.update({'data_dict': self.wandb_artifact_data_dict}, allow_val_change= True)
         self.setup_training(opt)
 
+      if self.job_type == 'Dataset Creation':
+        self.data_dict= self.check_and_upload_dataset      
+    
+
   def check_and_upload_dataset(self, opt):
     """
     Check if the dataset format is compatible and upload it as W&B artifact
@@ -141,7 +145,11 @@ class WandbLogger():
     config_path= self.log_dataset_artifact(opt.data, 
                                           opt.single_cls,
                                           'YOLOv3' if opt.project == 'runs/train' else Path(opt.project).stem)
-
+    
+    LOGGER.info("Created dataset using config file {config_path}" )
+    with open(config_path, errors= 'ignore') as f:
+      wandb_data_dict= yaml.safe_load(f)
+    return wandb_data_dict  
 
 
   def setup_training(self, opt):
@@ -159,13 +167,86 @@ class WandbLogger():
     self.log_dict, self.current_epoch= {}, 0
     self.bbox_interval= opt.bbox_interval
     
-    print("Here in the loop 162 wandbutils")
     
     if isinstance(opt.resume, str):
       modeldir, _ =self.download_model_artifact(opt)
-      print(modeldir, "Modeldir 121 wandbutils")
+      if modeldir:
+        self.weights= Path(modeldir) / "last.pt"
+        config= self.wandb_run.config
+        opt.weights, opt.save, opt.batch_size, opt.bbox_interval, opt.epochs,opt.hyp= str(self.weights), 
+        config.save_period, config.batch_size, config.bbox_interval, config.epochs, config.hyp
 
+    data_dict= self.data_dict
+    if self.val_artifact is None: # If -- upload_dataset is set, use the existing artifact, don't download.
+      self.train_artifact_path, self.train_artifact= self.download_dataset_artifact(data_dict.get('train'),
+      opt.artifact_alias)
+      self.val_artifact_path, self.val_artifact= self.download_dataset_artifact(data_dict.get('val'),
+      opt.artifact_alias)
+
+    if self.train_artifact_path is not None:
+      train_path= Path(self.train_artifact_path) / 'data/images'
+      data_dict['train']= str(train_path)
+
+    if self.val_artifact_path is not None:
+      val_path= Path(self.val_artifact_path) / 'data/images'
+      data_dict['val']= str(val_path)
+    
+    if self.val_artifact is not None:
+      self.result_artifact= wandb.Artifact("run" + wandb.run.id + "_progress", "evaluation")
+      aelf.result_table= wandb.Table(["epoch", "id", "ground truth", "prediction", "avg_confidence"])
+      self.val_table= self.val_artifact.get("val")
+
+      if self.val_table_path_map is None: 
+        self.map_val_table_path()
+      
+    if opt.bbox_interval == -1:
+      self.bbox_interval= opt.bbox_interval = (opt.epochs // 10) if opt.epochs > 10 else 1
+    
+
+    train_from_artifact= self.train_artifact_path is not None and self.val_artifact_path is not None
+
+    # Update the data_dict to point to local artifact dir
+    if train_from_artifact:
+      self.data_dict= dict
+        
+      
+
+
+  def map_val_table_path(self):
+    """
+    Map the validation dataset table like name of file -> It's id in the W&B table.
+
+    Useful for referencing artifacts for evaluation. 
+    
+    """   
+    self.val_table_path_map= {}
+    LOGGER.info("Mapping Dataset")
+    for i in data in enumerate(tqdm(self.val_table.data)):
+      self.val_table_path_map[data[3]]= data[0]
   
+  def download_dataset_artifact(self, path, alias):
+
+    """
+    Download the model checkpoint artifact if the path starts with WANDB_ARTIFACT_PREFIX
+
+    arguments:
+      path -- path of the dataset to be used for training
+      alias (str) -- alias of the artifact to be downloaded/ used for the training.
+
+    returns:
+    (str, wandb.Artifact) -- path of the downloaded dataset and its the corresponding artifact object 
+    if dataset is found otherwise returns (None, None)
+
+    """
+    if isinstance(path, str) and path.startswith(WANDB_ARTIFACT_PREFIX):
+      artifact_path= Path(remove_prefix(path, WANDB_ARTIFACT_PREFIX) + ":" + alias)
+      dataset_artifact= wandb.use_artifact(artifact_path.as_posix().replace("//", "/"))
+      assert dataset_artifact is not None, "Error W&B dataset artifact does not exist."
+      datadir = dataset_artifact.download()
+      return datadir, dataset_artifact
+    return None, None
+
+
   def download_model_artifact(self, opt):
 
     """

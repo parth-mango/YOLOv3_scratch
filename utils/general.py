@@ -145,8 +145,8 @@ def check_dataset(data, autodownload= True):
   
   return data
 
-
    
+
 
 def download(url, dir= '', unzip= True, delete= True, curl= False, threads= -1):
   # Multi-threaded file download and unzip function, used in data.yaml for autodownload
@@ -162,3 +162,15 @@ def download(url, dir= '', unzip= True, delete= True, curl= False, threads= -1):
         os.system(f"curl -L '{url}' -o '{f}' --retry 9 -C -")
       else:
         print("General 107 ")  
+
+
+
+def init_seeds(seed= 0):
+  #Initialize random number generator seeds
+  #cudnn seed 0 settings are slower and more reducible, else faster and less reducible
+
+  import torch.backends.cudnn as cudnn
+  random.seed(seed)
+  np.random.seed(seed)
+  torch.manual_seed(seed)
+  cudnn.benchmark, cudnn.deterministic= (False, True) if seed == 0 else (True, False)
