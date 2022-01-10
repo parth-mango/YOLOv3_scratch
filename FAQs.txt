@@ -1,0 +1,16 @@
+What is ONNX ?
+
+ONNX is an intermediary machine learning framework used to convert between different machine learning frameworks. So let's say you're in TensorFlow, 
+and you want to get to TensorRT, or you're in PyTorch, and you want to get to TFLite, or some other machine learning framework. ONNX is a really good 
+intermediary to use to convert your model as you're going through these different machine learning frameworks.
+
+So ONNX has worked really hard to basically implement all kinds of different neural network functions and different functionalities in these machine 
+learning models, so I can support  this cross functionality to have baseline, common framework to convert into.
+
+What are the 5 outputs for anchor box ?
+Ans. x: x coordinate of the centroid of the anchor box
+     y: y coordinate of the centroid of the anchor box
+     h: height of the anchor box
+     w: width of the anchor box
+     Ci/objectness: Confidence score of whether there is an object or not.
+     

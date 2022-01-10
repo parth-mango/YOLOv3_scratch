@@ -66,4 +66,3 @@ def select_device(device= '', batch_size= None, newline= True):
   return torch.device('cuda:0' if cuda else 'cpu')
      
 
-

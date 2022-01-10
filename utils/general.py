@@ -127,7 +127,7 @@ def check_dataset(data, autodownload= True):
   if val:
     val= [Path(x).resolve() for x in (val if isinstance(val, list) else [val])] #Val Path
     if not all(x.exists() for x in val):
-      print('\nWARNING: Dataset not found, nonexistent paths: %s' % [strx(x) for x in val if not x.exists()])
+      print('\nWARNING: Dataset not found, nonexistent paths: %s' % [str(x) for x in val if not x.exists()])
       if s and autodownload:
         root= path.parent if 'path' in data else '..'
         if s.startswith('http') and s.endswith('.zip'): #url
