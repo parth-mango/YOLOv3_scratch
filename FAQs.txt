@@ -14,3 +14,14 @@ Ans. x: x coordinate of the centroid of the anchor box
      w: width of the anchor box
      Ci/objectness: Confidence score of whether there is an object or not.
      
+Describe detection layers in Yolov3?
+Ans.YOLO v3 makes prediction across 3 different scales. The detection layer is used to make detection at feature maps of three different sizes, 
+having strides 32, 16, 8 (Total strides) respectively. This means, with an input of 416 x 416, we make detections on scales 13 x 13, 26 x 26 and 52 x 52.
+
+The network downsamples the input image until the first detection layer, where a detection is made using feature maps/outputs of a layer with stride(total stride) 32. 
+Further, layers are upsampled by a factor of 2 and concatenated with feature maps of a previous layers having identical feature map sizes. 
+Another detection is now made at layer with stride 16. The same upsampling procedure is repeated, and a final detection is made at the layer of stride 8.
+
+At each scale, each cell predicts 3 bounding boxes using 3 anchors, making the total number of anchors used 9. (The anchors are different for different scales)   
+
+The three detection layers are : 13 x 13 x 255 , 26 x 26 x 256, 52 x 52 x 128 
