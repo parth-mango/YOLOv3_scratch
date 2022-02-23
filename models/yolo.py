@@ -1,7 +1,7 @@
 import torch.nn as nn
 from pathlib import Path
-
-
+from copy import deepcopy
+from utils.general import LOGGER
 try:
   import thop # Pypi thop - for FLOPs computations
 except:
@@ -34,4 +34,24 @@ class Model(nn.Module):
       self.yaml_file= Path(cfg).name
       with open(cfg, encoding= 'ascii', errors= 'ignore') as f:
         self.yaml= yaml.safe_load(f) # model dict
-        print(self.yaml)     
+
+    #Define model
+    ch1= self.yaml['ch']= self.yaml.get('ch', ch)       
+    if nc and nc != self.yaml['nc']:
+      LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc= {nc}")
+      self.yaml['nc'] = nc #overriding yaml values
+    if anchors:
+      LOGGER.info(f"Overriding model.yaml nc= {self.yaml['nc']} with nc= {nc}")
+      self.yaml['anchors']= round(anchors)
+    # print(type(self.yaml))
+    self.model, self.save= parse_model(deepcopy(self.yaml), ch= [ch]) #model , savelist
+
+
+def parse_model(d, ch): #model_dict, input_channels(3)
+  LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
+  anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple']
+  na= (len(anchors[0]) // 2) if instance(anchors, list) else anchors  #number of anchors
+  no= na * (nc + 5) # number of outputs = anchors * (classes + 5)
+
+  layers, save, c2= [], [], [] # layers, savelist, ch out
+  for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']): # from(number of pre-layer for connection) 
